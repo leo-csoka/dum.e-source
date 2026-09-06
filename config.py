@@ -1,11 +1,11 @@
 class Config:
     def __init__(
         self,
-        token_vector_len=1536,
-        vocab_size=100277,
-        context_length=1024,
+        token_vector_len=640,
+        vocab_size=50257,
+        context_length=512,
         head_dim=64,
-        num_blocks=12,
+        num_blocks=10,
         hidden_upscale=4,
     ):
         # model hyperparameters

@@ -68,6 +68,8 @@ def main():
             logits[:, -1, :], args.temperature, args.top_k
         )
         token_ids.append(next_token_id)
+        if next_token_id == model.tokenizer.encoding.eot_token:
+            break
         print(model.tokenizer.decode([next_token_id]), end="", flush=True)
 
     print()

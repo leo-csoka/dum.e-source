@@ -12,7 +12,7 @@ class Tokenizer(nn.Module):
         self.cfg = config
         self.dim = self.cfg.token_vector_len
         self.max_sequence_length = self.cfg.context_length
-        self.encoding = tk.get_encoding("cl100k_base")
+        self.encoding = tk.get_encoding("gpt2")
         self.token_embeddings = nn.Embedding(self.cfg.vocab_size, self.dim)
         self.token_positions = nn.Embedding(self.max_sequence_length, self.dim)
 

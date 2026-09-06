@@ -12,15 +12,15 @@ from config import Config
 from model import Transformer
 
 
-def fineweb_batches(model, dataset_name, batch_size, tok):
-    # load requested dataset using my access token
+def tiny_stories_batches(model, dataset_id, batch_size, tok):
     dataset = load_dataset(
-        "HuggingFaceFW/fineweb",
-        name=dataset_name,
+        dataset_id,
+        name="sample-10BT",
         split="train",
         streaming=True,
-        token=tok
+        token=tok,
     )
+    dataset = dataset.shuffle(buffer_size=10_000, seed=42)
 
     # load all tokens model can take at once
     tokens_per_batch = batch_size * (model.cfg.context_length + 1)
@@ -29,6 +29,7 @@ def fineweb_batches(model, dataset_name, batch_size, tok):
     # encode all text as tokens for model
     for example in dataset:
         token_buffer.extend(model.tokenizer.encoding.encode(example["text"], allowed_special=set()))
+        token_buffer.append(model.tokenizer.encoding.eot_token)
         while len(token_buffer) >= tokens_per_batch:
             batch_tokens = token_buffer[:tokens_per_batch]
             del token_buffer[:tokens_per_batch]
@@ -77,7 +78,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--steps", type=int, default=1000)
     parser.add_argument("--batch-size", type=int, default=1)
-    parser.add_argument("--dataset", default="sample-100BT")
+    parser.add_argument("--dataset", default="HuggingFaceFW/fineweb-edu")
     parser.add_argument("--output", default="checkpoints/small")
     args = parser.parse_args()
 
@@ -85,19 +86,23 @@ def main():
     config = Config()
     model = Transformer(config)
     optimizer = optim.AdamW(
-        learning_rate=3e-4,
+        learning_rate=2e-4,
         betas=[0.9, 0.95],
         eps=1e-8,
         weight_decay=0.1,
         bias_correction=True,
     )
-    batches = fineweb_batches(model, args.dataset, args.batch_size, access_token)
-
+    batches = tiny_stories_batches(model, args.dataset, args.batch_size, access_token)
+    best_loss = 100
     # evaluate all user requested training steps
     for step in range(args.steps):
         inputs, targets = next(batches)
         loss = train_step(model, optimizer, inputs, targets)
-        print(f"step {step + 1:02d} loss {loss.item():.4f}")
+        if (step % 200 == 0):
+            print(f"step {step:02d} loss {loss.item():.4f}")
+        if (loss < (best_loss - 0.5)) and (step % 100 == 0):
+            best_loss = loss
+            save_checkpoint(model, f"{args.output}-step{step}")
 
     # save model once all steps are completed
     save_checkpoint(model, args.output)
