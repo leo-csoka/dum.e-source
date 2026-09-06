@@ -23,7 +23,7 @@ def sample_next_token(logits, temperature, top_k):
 def main():
     # get all user args
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", default="checkpoints/fineweb-small")
+    parser.add_argument("--checkpoint", default="checkpoints/small")
     parser.add_argument("--outputlen", type=int, default=10)
     parser.add_argument("--temperature", type=float, default=0.8)
     parser.add_argument("--top-k", type=int, default=10)

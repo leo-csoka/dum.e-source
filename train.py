@@ -64,7 +64,7 @@ def save_checkpoint(model, output_dir):
         "context_length": model.cfg.context_length,
         "head_dim": model.cfg.head_dim,
         "num_blocks": model.cfg.num_blocks,
-        "ffn_dim": model.cfg.ffn_dim,
+        "hidden_upscale": model.cfg.hidden_upscale,
     }
     with open(os.path.join(output_dir, "config.json"), "w", encoding="utf-8") as file:
         json.dump(config, file, indent=2)

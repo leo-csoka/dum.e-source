@@ -74,21 +74,22 @@ class LayerNorm(nn.Module):
         return self.gamma * x_norm + self.beta
 
 
-# --    SWIGLU FEED-FORWARD     --
+# --    GELU FEED-FORWARD     --
 class Perceptron(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.cfg = config
         self.dim = self.cfg.token_vector_len
-        self.hidden_dim = self.cfg.ffn_dim
-        self.W_gate = mx.random.normal((self.dim, self.hidden_dim)) * 0.02
-        self.W_up = mx.random.normal((self.dim, self.hidden_dim)) * 0.02
-        self.W_down = mx.random.normal((self.hidden_dim, self.dim)) * 0.02
+        self.hidden_dim = round(self.cfg.hidden_upscale * self.dim)
+        self.W1 = mx.random.normal((self.dim, self.hidden_dim)) * 0.02
+        self.b1 = mx.zeros(self.hidden_dim)
+        self.W2 = mx.random.normal((self.hidden_dim, self.dim)) * 0.02
+        self.b2 = mx.zeros(self.dim)
 
     def __call__(self, x):
-        gate = mx.matmul(x, self.W_gate)
-        up = mx.matmul(x, self.W_up)
-        return mx.matmul(mx.sigmoid(gate) * gate * up, self.W_down)
+        x = mx.matmul(x, self.W1) + self.b1
+        x = 0.5 * x * (1 + mx.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * (x ** 3))))
+        return mx.matmul(x, self.W2) + self.b2
 
 
 # --    ATTENTION     --
