@@ -64,7 +64,7 @@ def save_checkpoint(model, output_dir):
         "context_length": model.cfg.context_length,
         "head_dim": model.cfg.head_dim,
         "num_blocks": model.cfg.num_blocks,
-        "hidden_upscale": model.cfg.hidden_upscale,
+        "ffn_dim": model.cfg.ffn_dim,
     }
     with open(os.path.join(output_dir, "config.json"), "w", encoding="utf-8") as file:
         json.dump(config, file, indent=2)
@@ -84,7 +84,13 @@ def main():
     # create model, optimizer, training data
     config = Config()
     model = Transformer(config)
-    optimizer = optim.AdamW(learning_rate=1e-3, weight_decay=0.01)
+    optimizer = optim.AdamW(
+        learning_rate=3e-4,
+        betas=[0.9, 0.95],
+        eps=1e-8,
+        weight_decay=0.1,
+        bias_correction=True,
+    )
     batches = fineweb_batches(model, args.dataset, args.batch_size, access_token)
 
     # evaluate all user requested training steps
