@@ -4,6 +4,15 @@ import mlx.core as mx
 from model import load_checkpoint
 
 
+def cast_parameters(parameters, dtype):
+    # runs FP16 weights instead of FP32 for faster inference
+    if isinstance(parameters, dict):
+        return {name: cast_parameters(value, dtype) for name, value in parameters.items()}
+    if isinstance(parameters, list):
+        return [cast_parameters(value, dtype) for value in parameters]
+    return parameters.astype(dtype)
+
+
 def sample_next_token(logits, temperature, top_k):
     # top token chosen deterministically
     if temperature == 0:
@@ -27,6 +36,7 @@ def main():
     parser.add_argument("--outputlen", type=int, default=10)
     parser.add_argument("--temperature", type=float, default=0.8)
     parser.add_argument("--top-k", type=int, default=10)
+    parser.add_argument("--dtype", choices=("fp32", "fp16"), default="fp32")
     args = parser.parse_args()
 
     # safety checks
@@ -38,6 +48,11 @@ def main():
         parser.error("--top-k must be non-negative")
 
     model = load_checkpoint(args.checkpoint)
+    # run the model with quantization (optional)
+    if args.dtype == "fp16":
+        model.update(cast_parameters(model.parameters(), mx.float16))
+        mx.eval(model.parameters())
+
     text = input("Text: ")
     token_ids = model.tokenizer.encoding.encode(text, allowed_special=set())
     context_length = model.cfg.context_length
