@@ -74,22 +74,28 @@ class LayerNorm(nn.Module):
         return self.gamma * x_norm + self.beta
 
 
-# --    GELU FEED-FORWARD     --
-class Perceptron(nn.Module):
+# --    GATED SWIGLU MLP     --
+class SwiGLU(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.cfg = config
         self.dim = self.cfg.token_vector_len
         self.hidden_dim = round(self.cfg.hidden_upscale * self.dim)
-        self.W1 = mx.random.normal((self.dim, self.hidden_dim)) * 0.02
-        self.b1 = mx.zeros(self.hidden_dim)
-        self.W2 = mx.random.normal((self.hidden_dim, self.dim)) * 0.02
-        self.b2 = mx.zeros(self.dim)
+
+        self.W_gate = mx.random.normal((self.dim, self.hidden_dim)) * 0.02
+        self.b_gate = mx.zeros(self.hidden_dim)
+
+        self.W_up = mx.random.normal((self.dim, self.hidden_dim)) * 0.02
+        self.b_up = mx.zeros(self.hidden_dim)
+
+        self.W_out = mx.random.normal((self.hidden_dim, self.dim)) * 0.02
+        self.b_out = mx.zeros(self.dim)
 
     def __call__(self, x):
-        x = mx.matmul(x, self.W1) + self.b1
-        x = 0.5 * x * (1 + mx.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * (x ** 3))))
-        return mx.matmul(x, self.W2) + self.b2
+        gate = mx.matmul(x, self.W_gate) + self.b_gate
+        up = mx.matmul(x, self.W_up) + self.b_up
+        hidden = up * (gate * mx.sigmoid(gate))
+        return mx.matmul(hidden, self.W_out) + self.b_out
 
 
 # --    ATTENTION     --
@@ -142,7 +148,7 @@ class TransformerBlock(nn.Module):
         self.attention_norm = LayerNorm(config)
         self.attention = Attention(config)
         self.ffn_norm = LayerNorm(config)
-        self.perceptron = Perceptron(config)
+        self.perceptron = SwiGLU(config)
 
     def __call__(self, x):
         x = x + self.attention(self.attention_norm(x))

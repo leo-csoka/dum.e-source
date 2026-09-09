@@ -12,7 +12,7 @@ from config import Config
 from model import Transformer
 
 
-def tiny_stories_batches(model, dataset_id, batch_size, tok):
+def get_batches(model, dataset_id, batch_size, tok):
     dataset = load_dataset(
         dataset_id,
         name="sample-10BT",
@@ -39,15 +39,18 @@ def tiny_stories_batches(model, dataset_id, batch_size, tok):
             yield batch[:, :-1], batch[:, 1:]
 
 
-def loss_fn(model, inputs, targets):
+def loss_fn(model, inputs, targets, loss_mask=None):
     logits = model(inputs)
-    return mx.mean(nn.losses.cross_entropy(logits, targets, reduction="none"))
+    token_losses = nn.losses.cross_entropy(logits, targets, reduction="none")
+    if loss_mask is None:
+        return mx.mean(token_losses)
+    return mx.sum(token_losses * loss_mask) / (mx.sum(loss_mask) + 1e-8)
 
 
-def train_step(model, optimizer, inputs, targets):
+def train_step(model, optimizer, inputs, targets, loss_mask=None):
     # get model gradients and update model parameters
     loss_and_grad = nn.value_and_grad(model, loss_fn)
-    loss, gradients = loss_and_grad(model, inputs, targets)
+    loss, gradients = loss_and_grad(model, inputs, targets, loss_mask)
     optimizer.update(model, gradients)
     mx.eval(model.parameters(), optimizer.state, loss)
     return loss
@@ -92,15 +95,15 @@ def main():
         weight_decay=0.1,
         bias_correction=True,
     )
-    batches = tiny_stories_batches(model, args.dataset, args.batch_size, access_token)
+    batches = get_batches(model, args.dataset, args.batch_size, access_token)
     best_loss = 100
     # evaluate all user requested training steps
     for step in range(args.steps):
         inputs, targets = next(batches)
         loss = train_step(model, optimizer, inputs, targets)
-        if (step % 200 == 0):
+        if (step % 10 == 0):
             print(f"step {step:02d} loss {loss.item():.4f}")
-        if (loss < (best_loss - 0.5)) and (step % 100 == 0):
+        if (loss < (best_loss * 0.9)) and (step % int(args.steps/10) == 0):
             best_loss = loss
             save_checkpoint(model, f"{args.output}-step{step}")
 

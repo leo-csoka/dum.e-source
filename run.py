@@ -1,4 +1,5 @@
 import argparse
+import time
 
 import mlx.core as mx
 from model import load_checkpoint
@@ -10,7 +11,11 @@ def cast_parameters(parameters, dtype):
         return {name: cast_parameters(value, dtype) for name, value in parameters.items()}
     if isinstance(parameters, list):
         return [cast_parameters(value, dtype) for value in parameters]
-    return parameters.astype(dtype)
+    if isinstance(parameters, tuple):
+        return tuple(cast_parameters(value, dtype) for value in parameters)
+    if hasattr(parameters, "astype"):
+        return parameters.astype(dtype)
+    return parameters
 
 
 def sample_next_token(logits, temperature, top_k):
@@ -33,7 +38,7 @@ def main():
     # get all user args
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", default="checkpoints/small")
-    parser.add_argument("--outputlen", type=int, default=10)
+    parser.add_argument("--outputlen", type=int, default=200)
     parser.add_argument("--temperature", type=float, default=0.8)
     parser.add_argument("--top-k", type=int, default=10)
     parser.add_argument("--dtype", choices=("fp32", "fp16"), default="fp32")
@@ -59,6 +64,7 @@ def main():
 
     print("\n\n")
     print(text, end="")
+    start_ts = time.perf_counter()
 
     # evaluate all tokens
     for _ in range(args.outputlen):
@@ -71,7 +77,9 @@ def main():
         if next_token_id == model.tokenizer.encoding.eot_token:
             break
         print(model.tokenizer.decode([next_token_id]), end="", flush=True)
-
+    end_ts = time.perf_counter()
+    print("\n")
+    print(f"Execution Time: {(end_ts-start_ts):.2f}s")
     print()
 
 

@@ -1,12 +1,12 @@
 class Config:
     def __init__(
         self,
-        token_vector_len=640,
+        token_vector_len=512,
         vocab_size=50257,
-        context_length=512,
+        context_length=1000,
         head_dim=64,
-        num_blocks=10,
-        hidden_upscale=4,
+        num_blocks=12,
+        hidden_upscale=3,
     ):
         # model hyperparameters
         self.token_vector_len = token_vector_len
